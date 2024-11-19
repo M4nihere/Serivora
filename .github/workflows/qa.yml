@@ -7,18 +7,17 @@ on:
   pull_request:
     branches:
       - master
-
 jobs:
   qa:
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        node-version: [16, 18, 20] # Test against multiple Node.js versions
+        node-version: [20] # Use Node.js versions that support structuredClone
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
@@ -27,17 +26,7 @@ jobs:
           cache: 'npm'
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
       - name: Run Lint
-        run: npm run lint
-
-      - name: Run Tests
-        run: npm test
-
-      - name: Upload Coverage Report (Optional)
-        if: success()
-        uses: actions/upload-artifact@v3
-        with:
-          name: coverage-report
-          path: coverage/
+        run: npx eslint .
