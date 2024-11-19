@@ -1,8 +1,7 @@
 import globals from "globals";
 import pluginJs from "@eslint/js";
 
-
-/** @type {import('eslint').Linter.Config[]} */
+/** @type {import('eslint').Linter.FlatConfig[]} */
 export default [
   {
     files: ["**/*.js"],
@@ -10,16 +9,12 @@ export default [
       ecmaVersion: "latest",
       sourceType: "module",
       globals: {
-        require: "readonly",
-        __dirname: "readonly",
-        module: "readonly",
+        ...globals.node, // Node.js globals (e.g., require, __dirname)
+        ...globals.browser, // Browser globals (e.g., document, window)
       },
     },
-    env: {
-      node: true, // Enable Node.js global variables
-    },
     rules: {
-      "no-undef": "error", // Keep rule for other undefined variables
+      "no-undef": "error", // Keep rule for catching undefined variables
     },
   },
 ];
