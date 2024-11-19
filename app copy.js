@@ -18,16 +18,6 @@ app.use(cors());
 // In-memory storage for logs
 let logs = [];
 
-// Define the duration for log retention (2 days in milliseconds)
-const LOG_RETENTION_PERIOD = 2 * 24 * 60 * 60 * 1000; // 2 days in ms
-// Function to clean up old logs
-function cleanOldLogs() {
-    const currentTime = Date.now();
-    logs = logs.filter(log => (currentTime - log.timestamp) <= LOG_RETENTION_PERIOD);
-}
-// Call the cleanup function every hour (or whenever you want to clean old logs)
-setInterval(cleanOldLogs, 60 * 60 * 1000); // Run cleanup every hour
-
 // Serve static files from the "public" directory
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -92,7 +82,6 @@ app.post('/api/logs', authenticateJWT, (req, res) => {
         host,
         clientId,
         logText,
-        timestamp: Date.now(), // Add timestamp to each log entry
     };
 
     logs.push(logEntry);
@@ -106,8 +95,6 @@ app.post('/api/logs', authenticateJWT, (req, res) => {
 
 // Endpoint to fetch all logs (protected route)
 app.get('/api/logs', authenticateJWT, (req, res) => {
-    // Filter out logs that are older than 2 days
-    const recentLogs = logs.filter(log => (Date.now() - log.timestamp) <= LOG_RETENTION_PERIOD);
     res.status(200).json(logs);
 });
 
@@ -128,9 +115,8 @@ const broadcastLog = (logEntry) => {
 wss.on('connection', (ws) => {
     console.log('New client connected');
 
-    // Filter and send only recent logs to the newly connected client
-    const recentLogs = logs.filter(log => (Date.now() - log.timestamp) <= LOG_RETENTION_PERIOD);
-    ws.send(JSON.stringify(recentLogs));
+    // Send existing logs to the newly connected client
+    ws.send(JSON.stringify(logs));
 
     ws.on('close', () => {
         console.log('Client disconnected');

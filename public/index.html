@@ -46,6 +46,14 @@
             display: flex;
             flex-direction: column; /* Label above dropdown */
         }
+
+        #loginForm {
+            display: none;
+        }
+
+        #loggedIn {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -53,30 +61,51 @@
 <div class="container-fluid">
     <h1 class="mt-2">Log Viewer</h1>
 
-    <div class="filter-container">
-        <div class="filter-select">
-            <label for="hostFilter">Filter by Host:</label>
-            <select id="hostFilter" class="form-select">
-                <option value="">All Hosts</option>
-                <!-- Options will be populated dynamically -->
-            </select>
-        </div>
-        
-        <div class="filter-select">
-            <label for="serviceFilter">Filter by Service Name:</label>
-            <select id="serviceFilter" class="form-select">
-                <option value="">All Services</option>
-                <!-- Options will be populated dynamically -->
-            </select>
-        </div>
+    <!-- Login Form -->
+    <div id="loginForm" class="mb-4">
+        <h4>Log In</h4>
+        <form id="loginFormElement">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <input type="text" id="username" class="form-control" required />
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" id="password" class="form-control" required />
+            </div>
+            <button type="submit" class="btn btn-primary">Log In</button>
+        </form>
     </div>
 
-    <div id="output"></div>
+    <!-- Logged In View -->
+    <div id="loggedIn">
+        <div class="filter-container">
+            <div class="filter-select">
+                <label for="hostFilter">Filter by Host:</label>
+                <select id="hostFilter" class="form-select">
+                    <option value="">All Hosts</option>
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
 
-    <!-- Auto Scroll Checkbox -->
-    <div>
-        <input type="checkbox" id="autoScroll" checked />
-        <label for="autoScroll">Enable Auto-Scroll</label>
+            <div class="filter-select">
+                <label for="serviceFilter">Filter by Service Name:</label>
+                <select id="serviceFilter" class="form-select">
+                    <option value="">All Services</option>
+                    <!-- Options will be populated dynamically -->
+                </select>
+            </div>
+        </div>
+
+        <div id="output"></div>
+
+        <!-- Auto Scroll Checkbox -->
+        <div>
+            <input type="checkbox" id="autoScroll" checked />
+            <label for="autoScroll">Enable Auto-Scroll</label>
+        </div>
+        
+        <button id="logoutBtn" class="btn btn-danger mt-3">Log Out</button>
     </div>
 </div>
 
@@ -84,36 +113,110 @@
     const output = document.getElementById('output');
     const hostFilter = document.getElementById('hostFilter');
     const serviceFilter = document.getElementById('serviceFilter');
-    const autoScrollCheckbox = document.getElementById('autoScroll'); // Added this line to correctly reference the checkbox
+    const autoScrollCheckbox = document.getElementById('autoScroll');
+    const loginForm = document.getElementById('loginForm');
+    const loggedInView = document.getElementById('loggedIn');
+    const logoutBtn = document.getElementById('logoutBtn');
 
-    const logs = []; // Array to store all logs received from the WebSocket
+    const logs = [];
     const uniqueHosts = new Set();
-    const servicesByHost = {}; // Object to store services mapped to their hosts
+    const servicesByHost = {};
 
-    // Connect to the WebSocket server
-    const socket = new WebSocket('ws://localhost:3000');
+    // Check if a JWT token exists in localStorage and show the appropriate view
+    if (localStorage.getItem('jwt')) {
+        showLoggedInView();
+    } else {
+        showLoginView();
+    }
 
-    // Listen for messages from the server
-    socket.addEventListener('message', function (event) {
-        const logEntry = JSON.parse(event.data);
-        console.log('Received log:', logEntry); // Debug log
-        logs.push(logEntry);
+    // Handle login form submission
+    document.getElementById('loginFormElement').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
 
-        // Add host to uniqueHosts
-        if (logEntry.host) uniqueHosts.add(logEntry.host);
-
-        // Add service to the corresponding host in servicesByHost
-        if (logEntry.host && logEntry.serviceName) {
-            if (!servicesByHost[logEntry.host]) {
-                servicesByHost[logEntry.host] = new Set();
+        fetch('http://localhost:3000/api/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ username, password }),
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.token) {
+                localStorage.setItem('jwt', data.token); // Store JWT token
+                showLoggedInView();
+                connectWebSocket(data.token); // Connect WebSocket with token
+            } else {
+                alert('Invalid credentials');
             }
-            servicesByHost[logEntry.host].add(logEntry.serviceName);
-        }
-
-        populateHostDropdown(); // Update host dropdown dynamically
-        applyFilters(); // Apply filters whenever a new log is added
-        applyAutoScroll();
+        })
+        .catch(err => {
+            alert('Login failed');
+        });
     });
+
+    // Show the logged-in view
+    function showLoggedInView() {
+        loginForm.style.display = 'none';
+        loggedInView.style.display = 'block';
+        fetchLogs(); // Fetch logs after login
+    }
+
+    // Show the login view
+    function showLoginView() {
+        loginForm.style.display = 'block';
+        loggedInView.style.display = 'none';
+    }
+
+    // Handle logout
+    logoutBtn.addEventListener('click', function () {
+        localStorage.removeItem('jwt');
+        showLoginView();
+    });
+
+    // Fetch logs and populate WebSocket
+    function fetchLogs() {
+        const token = localStorage.getItem('jwt');
+        if (!token) return;
+
+        // Connect to WebSocket with token in the header
+        const socket = new WebSocket('ws://localhost:3000');
+        socket.addEventListener('open', function () {
+            socket.send(JSON.stringify({ token }));
+        });
+
+        // Listen for messages from the server
+        socket.addEventListener('message', function (event) {
+            const logEntry = JSON.parse(event.data);
+            console.log('Received log:', logEntry); // Debug log
+            logs.push(logEntry);
+
+            // Add host to uniqueHosts
+            if (logEntry.host) uniqueHosts.add(logEntry.host);
+
+            // Add service to the corresponding host in servicesByHost
+            if (logEntry.host && logEntry.serviceName) {
+                if (!servicesByHost[logEntry.host]) {
+                    servicesByHost[logEntry.host] = new Set();
+                }
+                servicesByHost[logEntry.host].add(logEntry.serviceName);
+            }
+
+            populateHostDropdown();
+            applyFilters();
+            applyAutoScroll();
+        });
+    }
+
+    // WebSocket connection
+    function connectWebSocket(token) {
+        const socket = new WebSocket('ws://localhost:3000');
+        socket.onopen = function () {
+            socket.send(JSON.stringify({ token }));
+        };
+    }
 
     // Populate the Host dropdown
     function populateHostDropdown() {
@@ -133,8 +236,8 @@
 
     // Populate the Service dropdown based on selected Host
     function populateServiceDropdown() {
-        const selectedHost = hostFilter.value; // Get the selected host
-        const currentService = serviceFilter.value; // Preserve current selection
+        const selectedHost = hostFilter.value;
+        const currentService = serviceFilter.value;
         serviceFilter.innerHTML = `<option value="">All Services</option>`; // Default option
 
         // Get services for the selected host
@@ -146,7 +249,6 @@
                 serviceFilter.appendChild(option);
             });
         } else if (!selectedHost) {
-            // If no host is selected, show all unique services
             const allServices = new Set();
             Object.values(servicesByHost).forEach(serviceSet => {
                 serviceSet.forEach(service => allServices.add(service));
@@ -159,7 +261,7 @@
             });
         }
 
-        serviceFilter.value = currentService; // Restore selection
+        serviceFilter.value = currentService;
     }
 
     // Apply filters and display filtered logs
@@ -167,17 +269,14 @@
         const selectedHost = hostFilter.value;
         const selectedService = serviceFilter.value;
 
-        // Clear existing output
         output.innerHTML = '';
 
-        // Filter logs based on selected Host and Service Name
         const filteredLogs = logs.filter(logEntry => {
             const hostMatches = selectedHost === '' || logEntry.host === selectedHost;
             const serviceMatches = selectedService === '' || logEntry.serviceName === selectedService;
             return hostMatches && serviceMatches;
         });
 
-        // Display the filtered logs
         if (filteredLogs.length > 0) {
             filteredLogs.forEach(displayLog);
         } else {
@@ -197,25 +296,23 @@
 
     // Event listener for host filter change
     hostFilter.addEventListener('change', () => {
-        populateServiceDropdown(); // Update services based on selected host
-        applyFilters(); // Apply filters
+        populateServiceDropdown();
+        applyFilters();
     });
 
     // Function to apply auto-scroll behavior
     function applyAutoScroll() {
         if (autoScrollCheckbox.checked) {
-            output.scrollTop = output.scrollHeight; // Scroll to the bottom of the output
+            output.scrollTop = output.scrollHeight;
         }
     }
 
-    // Event listener for the Auto-Scroll checkbox
     autoScrollCheckbox.addEventListener('change', () => {
         if (autoScrollCheckbox.checked) {
-            applyAutoScroll(); // Scroll to the bottom when auto-scroll is enabled
+            applyAutoScroll();
         }
     });
 
-    // Event listener for service filter change
     serviceFilter.addEventListener('change', applyFilters);
 </script>
 
