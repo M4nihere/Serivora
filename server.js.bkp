@@ -1,0 +1,94 @@
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const http = require('http');
+const WebSocket = require('ws');
+
+const app = express();
+const PORT = 3000;
+
+// Middleware
+app.use(cors());
+app.use(express.json());
+
+// In-memory storage for logs
+let logs = [];
+
+// Serve static files from the "public" directory
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Fallback to serve index.html for the root route
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Create an HTTP server
+const server = http.createServer(app);
+
+// Create a WebSocket server
+const wss = new WebSocket.Server({ server });
+
+// Broadcast function to send logs to all connected clients
+const broadcastLog = (logEntry) => {
+    wss.clients.forEach(client => {
+        if (client.readyState === WebSocket.OPEN) {
+            client.send(JSON.stringify(logEntry));
+        }
+    });
+};
+
+// Endpoint to receive logs from clients
+app.post('/api/logs', (req, res) => {
+    const { serviceName, host, clientId, logText } = req.body;
+
+    // Validate required fields
+    if (!serviceName || !host || !clientId || !logText) {
+        return res.status(400).json({
+            error: 'Missing required fields: serviceName, host, clientId, and logText are required.',
+        });
+    }
+
+    const logEntry = {
+        serviceName,
+        host,
+        clientId,
+        logText,
+    };
+
+    logs.push(logEntry);
+    console.log(`[LOG RECEIVED] ${JSON.stringify(logEntry)}`);
+
+    // Broadcast the new log entry to all connected WebSocket clients
+    broadcastLog(logEntry);
+
+    res.status(200).json({ message: 'Log received successfully' });
+});
+
+// Endpoint to fetch all logs
+app.get('/api/logs', (req, res) => {
+    res.status(200).json(logs);
+});
+
+// Endpoint to clear logs
+app.delete('/api/logs', (req, res) => {
+    logs = [];
+    console.log('[LOGS CLEARED]');
+    res.status(200).json({ message: 'All logs cleared' });
+});
+
+// WebSocket connection handling
+wss.on('connection', (ws) => {
+    console.log('New client connected');
+
+    // Send existing logs to the newly connected client
+    ws.send(JSON.stringify(logs));
+
+    ws.on('close', () => {
+        console.log('Client disconnected');
+    });
+});
+
+// Start the server
+server.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+});
