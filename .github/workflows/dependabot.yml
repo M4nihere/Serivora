@@ -1,0 +1,8 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"  # location of your package.json
+    schedule:
+      interval: "weekly"  # You can set it to 'daily', 'weekly', or 'monthly'
+    commit-message:
+      prefix: "fix"
