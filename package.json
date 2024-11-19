@@ -20,7 +20,7 @@
     "fs": "^0.0.1-security",
     "jq": "^1.7.2",
     "jsonwebtoken": "^9.0.2",
-    "mongodb": "4.1",
+    "mongodb": "6.10",
     "mongoose": "^8.8.2",
     "ws": "^8.18.0"
   },
