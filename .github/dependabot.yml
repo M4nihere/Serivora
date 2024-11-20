@@ -6,3 +6,7 @@ updates:
       interval: "weekly"  # You can set it to 'daily', 'weekly', or 'monthly'
     commit-message:
       prefix: "fix"
+  - package-ecosystem: "github-actions"
+    directory: "/"  # location of your package.json
+    schedule:
+      interval: "daily"  # You can set it to 'daily', 'weekly', or 'monthly'
