@@ -1,7 +1,7 @@
 {
-  "name": "log-server",
+  "name": "serivora",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "app.js",
   "scripts": {
     "test": "jest --coverage",
     "lint": "eslint ."
