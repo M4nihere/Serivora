@@ -6,7 +6,7 @@ const http = require('http');
 const WebSocket = require('ws');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const User = require('./models/User');
+const User = require('./models/User'); // Ensure this model has a role field
 require('dotenv').config();
 
 const app = express();
@@ -56,7 +56,13 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid username or password' });
         }
 
-        const token = jwt.sign({ username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
+        // Check if user is admin before issuing a token
+        if (user.role !== 'admin') {
+            return res.status(403).json({ error: 'Access denied. Admins only.' });
+        }
+
+        // Create a token with user role
+        const token = jwt.sign({ id: user._id, username: user.username, role: user.role }, JWT_SECRET, { expiresIn: '1h' });
         res.json({ token });
     } catch (err) {
         console.error(err);
@@ -81,6 +87,15 @@ const authenticateJWT = (req, res, next) => {
         });
     } else {
         res.sendStatus(401); // No token provided
+    }
+};
+
+// Middleware to check if user is admin
+const isAdmin = (req, res, next) => {
+    if (req.user.role === 'admin') {
+        next(); // User is admin, proceed to the next middleware/route handler
+    } else {
+        res.sendStatus(403); // Forbidden for non-admin users
     }
 };
 
@@ -109,8 +124,8 @@ app.post('/api/logs', authenticateJWT, (req, res) => {
     res.status(200).json({ message: 'Log received successfully' });
 });
 
-// Endpoint to fetch all logs (protected route)
-app.get('/api/logs', authenticateJWT, (req, res) => {
+// Endpoint to fetch all logs (protected route for admin)
+app.get('/api/logs', authenticateJWT, isAdmin, (req, res) => {
     const recentLogs = logs.filter(log => (Date.now() - log.timestamp) <= LOG_RETENTION_PERIOD);
     res.status(200).json(recentLogs);
 });
@@ -129,6 +144,8 @@ const broadcastLog = (logEntry) => {
 
 wss.on('connection', (ws) => {
     console.log('New client connected');
+
+    // Send recent logs to the new client upon connection
     const recentLogs = logs.filter(log => (Date.now() - log.timestamp) <= LOG_RETENTION_PERIOD);
     ws.send(JSON.stringify(recentLogs));
 

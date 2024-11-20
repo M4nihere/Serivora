@@ -1,23 +1,21 @@
+require('dotenv').config();
 const mongoose = require('mongoose');
-const User = require('./models/User');
+const User = require('./models/User'); // Adjust path as necessary
 
-const mongoURI = 'mongodb://admin:VRuAd2Nvmp4ELHh5@localhost:27017/test?authSource=admin';
+const mongoURI = process.env.MONGO_URI;
 
-mongoose.connect(mongoURI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-})
+mongoose.connect(mongoURI)
     .then(async () => {
         console.log('Connected to MongoDB');
 
         const users = [
             { username: 'admin', password: 'admin123', role: 'admin' },
-            { username: 'user1', password: 'user1', role: 'user' },
-            { username: 'user2', password: 'user2', role: 'user' },
+            { username: 'user1', password: 'user1', role: 'client' },
+            { username: 'user2', password: 'user2', role: 'client' },
         ];
 
-        await User.deleteMany({});
-        await User.insertMany(users);
+        await User.deleteMany({}); // Clear existing users
+        await User.insertMany(users); // Insert new users
 
         console.log('Users seeded successfully');
         mongoose.connection.close();
