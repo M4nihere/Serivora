@@ -1,18 +1,22 @@
-/* styles.css */
 body {
     font-family: "Fira Code", monospace;
     background-color: #f4f5f7;
-    padding: 10px;
+    padding: 20px;
 }
+
 .container {
-    padding: 0 15px;
+    padding: 0 15px; /* General padding for all containers */
+    max-width: 400px; /* Specific max-width for forms */
+    margin: 0 auto; /* Center the container */
 }
+
 h1 {
     text-align: center;
     font-size: 32px;
     color: #333;
     margin-bottom: 20px;
 }
+
 #output {
     width: 100%;
     height: 75vh; 
@@ -23,9 +27,10 @@ h1 {
     padding: 20px;
     color: #333;
     line-height: 1.5;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 450;
 }
+
 .filter-container {
     display: flex;
     gap: 10px; /* Spacing between the dropdowns */
@@ -37,3 +42,18 @@ h1 {
     flex-direction: column; /* Label above dropdown */
 }
 
+.form-container {
+    background-color: #fff; /* Background for forms */
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#loginForm,
+#loggedIn {
+    display: none; /* Hide login form and logged-in message by default */
+}
+
+.alert {
+    display: none; /* Hide alert by default */
+}
