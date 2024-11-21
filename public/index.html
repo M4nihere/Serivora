@@ -210,11 +210,35 @@
         });
     }
 
-    // WebSocket connection
+    // Function to connect to WebSocket
     function connectWebSocket(token) {
-        const socket = new WebSocket('ws://localhost:3000');
+        // Determine the protocol and set the WebSocket URL
+        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const host = window.location.hostname; // Gets the host (domain or IP)
+        const port = window.location.port ? `:${window.location.port}` : ''; // Gets the port if specified
+
+        const socketUrl = `${protocol}${host}${port}`; // Construct the WebSocket URL
+
+        const socket = new WebSocket(socketUrl);
+        
         socket.onopen = function () {
             socket.send(JSON.stringify({ token }));
+        };
+
+        // Listen for messages from the server
+        socket.addEventListener('message', function (event) {
+            const logEntry = JSON.parse(event.data);
+            console.log('Received log:', logEntry); // Debug log
+            logs.push(logEntry);
+            // Process log entry...
+        });
+
+        socket.onerror = function (error) {
+            console.error('WebSocket error:', error);
+        };
+
+        socket.onclose = function () {
+            console.log('WebSocket connection closed');
         };
     }
 
