@@ -135,10 +135,7 @@
         const username = document.getElementById('username').value;
         const password = document.getElementById('password').value;
 
-        // Dynamic API URL based on current environment
-        const apiUrl = `${window.location.protocol}//${window.location.hostname}:${window.location.port}/api/login`;
-
-        fetch(apiUrl, {
+        fetch('http://localhost:3000/api/login', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -157,7 +154,6 @@
         })
         .catch(err => {
             alert('Login failed');
-            console.error(err);
         });
     });
 
@@ -185,21 +181,11 @@
         const token = localStorage.getItem('jwt');
         if (!token) return;
 
-        connectWebSocket(token); // Connect WebSocket with token
-    }
-
-    // Function to connect to WebSocket with dynamic URL
-    function connectWebSocket(token) {
-        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
-        const host = window.location.hostname; // Gets the host (domain or IP)
-        const port = window.location.port ? `:${window.location.port}` : ''; // Gets the port if specified
-
-        const socketUrl = `${protocol}${host}${port}`; // Construct the WebSocket URL
-        const socket = new WebSocket(socketUrl);
-
-        socket.onopen = function () {
+        // Connect to WebSocket with token in the header
+        const socket = new WebSocket('ws://localhost:3000');
+        socket.addEventListener('open', function () {
             socket.send(JSON.stringify({ token }));
-        };
+        });
 
         // Listen for messages from the server
         socket.addEventListener('message', function (event) {
@@ -221,6 +207,30 @@
             populateHostDropdown();
             applyFilters();
             applyAutoScroll();
+        });
+    }
+
+    // Function to connect to WebSocket
+    function connectWebSocket(token) {
+        // Determine the protocol and set the WebSocket URL
+        const protocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+        const host = window.location.hostname; // Gets the host (domain or IP)
+        const port = window.location.port ? `:${window.location.port}` : ''; // Gets the port if specified
+
+        const socketUrl = `${protocol}${host}${port}`; // Construct the WebSocket URL
+
+        const socket = new WebSocket(socketUrl);
+        
+        socket.onopen = function () {
+            socket.send(JSON.stringify({ token }));
+        };
+
+        // Listen for messages from the server
+        socket.addEventListener('message', function (event) {
+            const logEntry = JSON.parse(event.data);
+            console.log('Received log:', logEntry); // Debug log
+            logs.push(logEntry);
+            // Process log entry...
         });
 
         socket.onerror = function (error) {
@@ -252,9 +262,9 @@
     function populateServiceDropdown() {
         const selectedHost = hostFilter.value;
         const currentService = serviceFilter.value;
-        
         serviceFilter.innerHTML = `<option value="">All Services</option>`; // Default option
 
+        // Get services for the selected host
         if (selectedHost && servicesByHost[selectedHost]) {
             servicesByHost[selectedHost].forEach(serviceName => {
                 const option = document.createElement('option');
@@ -275,7 +285,7 @@
             });
         }
 
-        serviceFilter.value = currentService; // Restore selection
+        serviceFilter.value = currentService;
     }
 
     // Apply filters and display filtered logs
@@ -302,34 +312,33 @@
 
     // Function to display a single log entry
     function displayLog(logEntry) {
-        const logMessage = `${logEntry.clientId} - ${logEntry.host} - ${logEntry.serviceName} : ${logEntry.logText}`;
-        
+        const logMessage = ` ${logEntry.clientId} - ${logEntry.host}  - ${logEntry.serviceName} : ${logEntry.logText}`;
         const logElement = document.createElement('div');
         logElement.textContent = logMessage;
-        
         output.appendChild(logElement);
     }
 
     // Event listener for host filter change
     hostFilter.addEventListener('change', () => {
-       populateServiceDropdown();
-       applyFilters();
-   });
+        populateServiceDropdown();
+        applyFilters();
+    });
 
-   // Function to apply auto-scroll behavior
-   function applyAutoScroll() {
-       if (autoScrollCheckbox.checked) {
-           output.scrollTop = output.scrollHeight;
-       }
-   }
+    // Function to apply auto-scroll behavior
+    function applyAutoScroll() {
+        if (autoScrollCheckbox.checked) {
+            output.scrollTop = output.scrollHeight;
+        }
+    }
 
-   autoScrollCheckbox.addEventListener('change', () => {
-       if (autoScrollCheckbox.checked) {
-           applyAutoScroll();
-       }
-   });
+    autoScrollCheckbox.addEventListener('change', () => {
+        if (autoScrollCheckbox.checked) {
+            applyAutoScroll();
+        }
+    });
 
-   serviceFilter.addEventListener('change', applyFilters);
+    serviceFilter.addEventListener('change', applyFilters);
 </script>
+
 </body>
 </html>
